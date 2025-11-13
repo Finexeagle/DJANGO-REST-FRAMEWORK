@@ -7,15 +7,31 @@ from api.models import Product
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 
-from .serializers import ProductSerializers
+from .serializers import ProductSerializer
 
-@api_view(["GET"])
+from rest_framework import generics
+
+@api_view(["POST"])
 def api(request, *args, **kwargs):
-    instance = Product.objects.all().order_by("?").first()
-    print(type(instance))
-    data = {}
-    if instance:
-        data = ProductSerializers(instance).data
-    return Response(data)
+    serializer = ProductSerializer(data=request.data)
+    if serializer.is_valid(raise_exception=True):
+        serializer.save()
+        data = request.data
+        print(f"data is validated {data}")
+        return Response(data)
+    else:
+        return Response(serializer.errors, status=400)
+    
+
+class ProductDetailedApiView(generics.RetrieveAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+class ProductCreateAPiView(generics.CreateAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+product_detail_view = ProductDetailedApiView.as_view()
+product_create_view = ProductCreateAPiView.as_view()
 
 
