@@ -9,7 +9,7 @@ from rest_framework.decorators import api_view
 
 from .serializers import ProductSerializer
 
-from rest_framework import generics
+from rest_framework import generics, mixins
 
 @api_view(["POST"])
 def api(request, *args, **kwargs):
@@ -27,11 +27,103 @@ class ProductDetailedApiView(generics.RetrieveAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
+class ProductListApiView(generics.ListAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
 class ProductCreateAPiView(generics.CreateAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
+    def perform_create(self, serializer):
+        print(serializer.validated_data)
+        title = serializer.validated_data.get('title')
+        content = serializer.validated_data.get('content') or None
+        if content is None:
+            content = title
+        serializer.save(content=content)
+
+class ProductUpdateAPiview(generics.UpdateAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    lookup_field = "pk"
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        if not instance.content:
+            instance.content = instance.title
+
+class ProductDestroyAPiview(generics.DestroyAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    lookup_field = "pk"
+
+
+        
 product_detail_view = ProductDetailedApiView.as_view()
 product_create_view = ProductCreateAPiView.as_view()
+product_list_view = ProductListApiView.as_view()
+product_update_view = ProductUpdateAPiview.as_view()
+product_destroy_view = ProductDestroyAPiview.as_view()
+
+
+class ProductMixins(generics.GenericAPIView, 
+                    mixins.ListModelMixin,
+                    mixins.RetrieveModelMixin,
+                    mixins.CreateModelMixin,
+                    mixins.UpdateModelMixin,
+                    mixins.DestroyModelMixin):
+    
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    lookup_field = "pk"
+    
+    def get(self, request, *args, **kwargs):
+        pk = kwargs.get("pk")
+        if pk is not None:
+            return self.retrieve(request, *args, **kwargs)
+        else:
+            self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+    
+    def patch(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+    
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+    
+product_mixin_view = ProductMixins.as_view()
+
+
+@api_view(['GET', 'POST'])
+def product_alt_view(request, pk=None, *args, **kwargs):
+    if request.method == 'GET':
+        queryset = Product.objects.all()
+        if pk is not None:
+            data = queryset.filter(pk=pk).first()
+            if data is None:
+                return Response({"detail": "Not found"}, status=404)
+
+            serializer = ProductSerializer(data)
+            return Response(serializer.data)
+        else:
+            serializer = ProductSerializer(queryset, many=True)
+            return Response(serializer.data)
+    elif request.method == 'POST':
+        queryset = Product.objects.all()
+        serializer = ProductSerializer(data=request.data)
+        if serializer.is_valid():
+            title = serializer.validated_data.get('title')
+            content = serializer.validated_data.get('content') or None
+            if content is None:
+                content = title
+                serializer.save(content=content)
+            return Response(f"data is validated : data = {Product.objects.last().content}")
+        
+    
+
+
 
 
