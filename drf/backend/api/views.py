@@ -50,14 +50,16 @@ class ProductListCreateAPiView(StaffEditorPermissionsMixin,  # <- this permissio
     
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-
+  
     def perform_create(self, serializer):
+        email = serializer.validated_data.pop('email')
+        print(email)
         print(serializer.validated_data)
         title = serializer.validated_data.get('title')
         content = serializer.validated_data.get('content') or None
         if content is None:
             content = title
-        serializer.save(content=content)
+        serializer.save(content=content)  # this will call .create() if an instance is not existed and call .update() if instance is existed 
 
 class ProductUpdateAPiview(StaffEditorPermissionsMixin,  # <- this permission class should always define first when inheriting, since python MRO used to find the permisson class
                            generics.UpdateAPIView):
